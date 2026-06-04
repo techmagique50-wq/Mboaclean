@@ -4,6 +4,7 @@ import { Camera, Check, ChevronLeft, Loader2, MapPin, Send } from 'lucide-react'
 import { useStore } from '../store'
 import { compressImage } from '../lib/photo'
 import { urgency } from '../domain/engine'
+import { CITY_NAMES, cityCenter } from '../domain/cities'
 import {
   VOLUME_LABEL,
   WASTE_LABEL,
@@ -59,7 +60,8 @@ export function ReportPage() {
       },
       () => {
         // repli : centre de Yaoundé (démo) si refus/échec
-        setCoords({ lat: 3.866 + (Math.random() - 0.5) * 0.04, lng: 11.516 + (Math.random() - 0.5) * 0.04 })
+        const [clat, clng] = cityCenter(ville)
+        setCoords({ lat: clat + (Math.random() - 0.5) * 0.04, lng: clng + (Math.random() - 0.5) * 0.04 })
         setGeoState('error')
       },
       { enableHighAccuracy: true, timeout: 8000 },
@@ -188,8 +190,9 @@ export function ReportPage() {
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-muted">Ville</span>
               <select value={ville} onChange={(e) => setVille(e.target.value)} className="w-full rounded-xl border border-line px-3 py-2 text-sm">
-                <option>Yaoundé</option>
-                <option>Douala</option>
+                {CITY_NAMES.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
             </label>
             <label className="block">

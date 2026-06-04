@@ -1,7 +1,8 @@
 import type { Report } from './types'
+import { depotFor } from './cities'
 
-/** Dépôt / garage HYSACAM (point de départ des tournées) — Yaoundé. */
-export const DEPOT = { lat: 3.83, lng: 11.54, name: 'Garage HYSACAM (Nsam)' }
+/** Dépôt par défaut (Yaoundé). Le dashboard utilise le dépôt de la ville choisie. */
+export const DEPOT = depotFor('Yaoundé')
 
 const DAY = 86_400_000
 const T0 = 1_748_736_000_000 // base fixe (déterministe, pas de Date.now)
@@ -51,9 +52,14 @@ export const seedReports: Report[] = [
   r({ lat: 3.908, lng: 11.53, ville: 'Yaoundé', quartier: 'Etoudi', wasteType: 'menager', volume: 'grand', zone: 'normale', reporterName: 'Alain K.', daysAgo: 12, status: 'resolu' }),
   r({ lat: 3.844, lng: 11.516, ville: 'Yaoundé', quartier: 'Centre-ville', wasteType: 'encombrant', volume: 'moyen', zone: 'normale', reporterName: 'Nadia S.', daysAgo: 14, status: 'resolu' }),
 
-  // ── Douala (extension future)
+  // ── Douala
   r({ lat: 4.05, lng: 9.7, ville: 'Douala', quartier: 'Akwa', wasteType: 'menager', volume: 'grand', zone: 'marche', reporterName: 'Eric M.', daysAgo: 2 }),
   r({ lat: 4.036, lng: 9.718, ville: 'Douala', quartier: 'New Bell', wasteType: 'plastique', volume: 'enorme', zone: 'normale', reporterName: 'Bertrand A.', daysAgo: 3 }),
+
+  // ── Autres villes (le registre en gère bien d'autres)
+  r({ lat: 5.478, lng: 10.418, ville: 'Bafoussam', quartier: 'Marché A', wasteType: 'menager', volume: 'grand', zone: 'marche', reporterName: 'Flore T.', daysAgo: 2 }),
+  r({ lat: 5.474, lng: 10.41, ville: 'Bafoussam', quartier: 'Tamdja', wasteType: 'organique', volume: 'moyen', zone: 'normale', reporterName: 'Léon K.', daysAgo: 4 }),
+  r({ lat: 5.96, lng: 10.146, ville: 'Bamenda', quartier: 'Commercial Ave', wasteType: 'plastique', volume: 'grand', zone: 'marche', reporterName: 'Glory N.', daysAgo: 1 }),
 ]
 
 // enrichir l'historique des "en cours" / "résolu"

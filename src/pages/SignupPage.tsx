@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Building2, Lock, Mail, MapPin, User as UserIcon, UserPlus } from 'lucide-react'
 import { useStore } from '../store'
 import type { Role } from '../domain/types'
+import { CITY_NAMES } from '../domain/cities'
 import { AuthShell, Field } from '../components/AuthShell'
 
 export function SignupPage() {
@@ -76,8 +77,9 @@ export function SignupPage() {
         <div className="grid grid-cols-2 gap-2">
           <Field label="Ville" icon={<MapPin size={16} />}>
             <select value={ville} onChange={(e) => setVille(e.target.value)} className="w-full bg-transparent outline-none">
-              <option>Yaoundé</option>
-              <option>Douala</option>
+              {CITY_NAMES.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
             </select>
           </Field>
           {role === 'citoyen' ? (

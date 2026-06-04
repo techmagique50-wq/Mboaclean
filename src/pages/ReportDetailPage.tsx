@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, CloudOff, MapPin, Navigation, User } from 'lucide-react'
-import { DEPOT, useAuth, useStore } from '../store'
+import { useAuth, useStore } from '../store'
+import { depotFor } from '../domain/cities'
 import { MapView } from '../components/MapView'
 import { compressImage } from '../lib/photo'
 import { distanceM, urgency } from '../domain/engine'
@@ -31,7 +32,7 @@ export function ReportDetailPage() {
 
   const u = urgency(report, reports)
   const win = bestInterventionWindow(report.zone)
-  const accessKm = distanceM(DEPOT, report) / 1000
+  const accessKm = distanceM(depotFor(report.ville), report) / 1000
   const minBest = travelMinutes(accessKm, win.hour, report.zone)
   const minPeak = travelMinutes(accessKm, 8, report.zone)
 

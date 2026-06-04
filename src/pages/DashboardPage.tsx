@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, Fuel, Leaf, Route, TrendingUp } from 'lucide-react'
-import { useStore, DEPOT } from '../store'
+import { useStore } from '../store'
 import { MapView } from '../components/MapView'
 import { planRoute, urgency } from '../domain/engine'
 import { departureAdvice, fmtHour } from '../domain/congestion'
+import { CITY_NAMES, cityCenter, depotFor } from '../domain/cities'
 import { WASTE_LABEL } from '../domain/types'
 import { PageTitle, Stat, StatusPill, UrgencyPill, formatFCFA } from '../ui/ui'
 
 export function DashboardPage() {
   const reports = useStore((s) => s.reports)
-  const [ville, setVille] = useState<'Yaoundé' | 'Douala'>('Yaoundé')
+  const [ville, setVille] = useState<string>('Yaoundé')
+  const depot = depotFor(ville)
 
   const cityReports = useMemo(() => reports.filter((r) => r.ville === ville), [reports, ville])
   const active = cityReports.filter((r) => r.status !== 'resolu')
@@ -39,7 +41,7 @@ export function DashboardPage() {
   )
 
   // tournée optimisée
-  const plan = useMemo(() => planRoute(active, DEPOT), [active])
+  const plan = useMemo(() => planRoute(active, depot), [active, depot])
   const dep = useMemo(() => departureAdvice(plan.optimizedKm), [plan.optimizedKm])
 
   const hauts = prioritized.filter((p) => p.u.level === 'haut').length
@@ -50,11 +52,12 @@ export function DashboardPage() {
         <PageTitle title="Tableau de bord" subtitle={`Pilotage de la collecte — ${ville}`} />
         <select
           value={ville}
-          onChange={(e) => setVille(e.target.value as 'Yaoundé' | 'Douala')}
+          onChange={(e) => setVille(e.target.value)}
           className="rounded-xl border border-line bg-card px-3 py-2 text-sm"
         >
-          <option>Yaoundé</option>
-          <option>Douala</option>
+          {CITY_NAMES.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
         </select>
       </div>
 
@@ -72,7 +75,7 @@ export function DashboardPage() {
           <Route size={18} /> Tournée optimisée du jour
         </h2>
         <p className="mt-0.5 text-sm text-muted">
-          Itinéraire « plus proche voisin » depuis le {DEPOT.name}, comparé à une tournée non optimisée.
+          Itinéraire « plus proche voisin » depuis le {depot.name}, comparé à une tournée non optimisée.
         </p>
         <div className="mt-3 grid grid-cols-3 gap-3">
           <Mini icon={<Fuel size={18} />} value={`${plan.litersSaved.toFixed(1)} L`} label="carburant économisé" color="#e8552d" />
@@ -119,9 +122,10 @@ export function DashboardPage() {
       {/* carte avec tournée */}
       <div className="mt-4 h-72 overflow-hidden rounded-2xl ring-1 ring-line">
         <MapView
+          key={ville}
           reports={active}
-          route={{ points: plan.ordered, depot: DEPOT }}
-          center={[DEPOT.lat + 0.04, DEPOT.lng - 0.02]}
+          route={{ points: plan.ordered, depot }}
+          center={cityCenter(ville)}
           zoom={12}
         />
       </div>

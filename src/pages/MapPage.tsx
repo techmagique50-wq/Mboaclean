@@ -4,12 +4,13 @@ import { Flame, Lightbulb, MapPin, PlusCircle } from 'lucide-react'
 import { useStore } from '../store'
 import { MapView } from '../components/MapView'
 import { useDailyTip } from '../hooks/useDailyAITip'
+import { CITY_NAMES, cityCenter } from '../domain/cities'
 import type { ReportStatus } from '../domain/types'
 
 export function MapPage() {
   const reports = useStore((s) => s.reports)
   const [heat, setHeat] = useState(false)
-  const [ville, setVille] = useState<'toutes' | 'Yaoundé' | 'Douala'>('toutes')
+  const [ville, setVille] = useState<string>('toutes')
   const [status, setStatus] = useState<ReportStatus | 'tous'>('tous')
 
   const filtered = useMemo(
@@ -55,13 +56,18 @@ export function MapPage() {
       </div>
 
       {/* filtres */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        {(['toutes', 'Yaoundé', 'Douala'] as const).map((v) => (
-          <Chip key={v} active={ville === v} onClick={() => setVille(v)}>
-            {v === 'toutes' ? 'Toutes villes' : v}
-          </Chip>
-        ))}
-        <span className="mx-1 w-px bg-line" />
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <select
+          value={ville}
+          onChange={(e) => setVille(e.target.value)}
+          className="rounded-full border border-line bg-card px-3 py-1.5 text-sm font-medium text-muted"
+        >
+          <option value="toutes">Toutes les villes</option>
+          {CITY_NAMES.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        <span className="mx-1 w-px self-stretch bg-line" />
         {(['tous', 'signale', 'en_cours', 'resolu'] as const).map((s) => (
           <Chip key={s} active={status === s} onClick={() => setStatus(s)}>
             {s === 'tous' ? 'Tous' : s === 'signale' ? 'Signalés' : s === 'en_cours' ? 'En cours' : 'Résolus'}
@@ -70,7 +76,13 @@ export function MapPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-line" style={{ height: '64vh' }}>
-        <MapView reports={filtered} showHeat={heat} />
+        <MapView
+          key={ville}
+          reports={filtered}
+          showHeat={heat}
+          center={ville === 'toutes' ? undefined : cityCenter(ville)}
+          zoom={ville === 'toutes' ? 6 : 13}
+        />
       </div>
 
       <Link
