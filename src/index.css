@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* Active la variante dark via la classe .dark sur <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Tokens sémantiques (mappés sur des variables CSS dynamiques) ───────────── */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-hover: var(--hover);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: Poppins, Inter, ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  --animate-fade-up: fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+}
+
+/* ── Thème clair ──────────────────────────────────────────────────────────── */
+:root {
+  --bg: #eef3f0;
+  --card: #ffffff;
+  --hover: #f1f5f3;
+  --ink: #14241b;
+  --muted: #56685e;
+  --faint: #8a9b91;
+  --line: #e2eae5;
+  --brand: #1b7a43;
+  --brand-strong: #0f4d2a;
+  --brand-soft: #e6f2ea;
+  --accent: #0c9a9a;
+  --danger: #e8552d;
+  color-scheme: light;
+}
+
+/* ── Thème sombre ─────────────────────────────────────────────────────────── */
+.dark {
+  --bg: #0b1310;
+  --card: #14201b;
+  --hover: #1d2c25;
+  --ink: #e9f1ec;
+  --muted: #a2b4aa;
+  --faint: #6f827a;
+  --line: #25342c;
+  --brand: #34b36a;
+  --brand-strong: #8fe0ab;
+  --brand-soft: #16291f;
+  --accent: #2bc0c0;
+  --danger: #f4724f;
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+/* Champs de formulaire (lisibles en clair comme en sombre) */
+input, select, textarea {
+  color: var(--ink);
+  background-color: transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input::placeholder, textarea::placeholder { color: var(--faint); }
+select option { background: var(--card); color: var(--ink); }
+
+/* Carte Leaflet */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: var(--hover);
+  font-family: inherit;
+  z-index: 0;
+}
+/* assombrir les tuiles en dark mode */
+.dark .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.95); }
+.dark .leaflet-container { background: #0b1310; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: var(--card); color: var(--ink);
+}
+
+/* Scrollbar discrète */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+
+/* Focus accessible */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--hover) 25%, var(--line) 37%, var(--hover) 63%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 0.75rem;
+}
+
+/* Respect de la préférence de mouvement réduit */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
