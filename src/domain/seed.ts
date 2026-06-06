@@ -1,4 +1,4 @@
-import type { Report } from './types'
+import type { PickupRequest, Report } from './types'
 import { depotFor } from './cities'
 
 /** Dépôt par défaut (Yaoundé). Le dashboard utilise le dépôt de la ville choisie. */
@@ -72,3 +72,11 @@ for (const rep of seedReports) {
     rep.updatedAt = rep.createdAt + 3 * DAY
   }
 }
+
+// ── Demandes de ramassage (marketplace ménage ↔ ramasseur) ───────────────────
+const H = 3_600_000
+export const seedPickups: PickupRequest[] = [
+  { id: 'pk1', householdId: 'acc_cit', householdName: 'Cyrille', ville: 'Yaoundé', quartier: 'Mokolo', lat: 3.8742, lng: 11.5072, wasteType: 'menager', note: '2 sacs devant le portail', fee: 500, status: 'ouverte', createdAt: T0 - H, updatedAt: T0 - H },
+  { id: 'pk2', householdId: 'acc_cit', householdName: 'Voisin (Briqueterie)', ville: 'Yaoundé', quartier: 'Briqueterie', lat: 3.879, lng: 11.511, wasteType: 'organique', fee: 300, status: 'ouverte', createdAt: T0 - 2 * H, updatedAt: T0 - 2 * H },
+  { id: 'pk3', householdId: 'acc_cit', householdName: 'Ménage Nlongkak', ville: 'Yaoundé', quartier: 'Nlongkak', lat: 3.88, lng: 11.516, wasteType: 'menager', fee: 700, status: 'acceptee', collectorId: 'acc_ram', collectorName: 'Joseph (ramasseur)', collectorPhone: '+237 6 99 88 77 66', collectorOperator: 'MTN MoMo', createdAt: T0 - 5 * H, updatedAt: T0 - 4 * H },
+]

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { Building2, Lock, Mail, MapPin, User as UserIcon, UserPlus } from 'lucide-react'
+import { Building2, Lock, Mail, MapPin, Phone, User as UserIcon, UserPlus } from 'lucide-react'
 import { useStore } from '../store'
 import type { Role } from '../domain/types'
 import { CITY_NAMES } from '../domain/cities'
 import { AuthShell, Field } from '../components/AuthShell'
+
+const OPERATORS = ['MTN MoMo', 'Orange Money']
 
 export function SignupPage() {
   const authId = useStore((s) => s.authId)
@@ -18,49 +20,53 @@ export function SignupPage() {
   const [ville, setVille] = useState('Yaoundé')
   const [quartier, setQuartier] = useState('')
   const [organisation, setOrganisation] = useState('')
+  const [phone, setPhone] = useState('')
+  const [operator, setOperator] = useState(OPERATORS[0])
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
   if (authId) return <Navigate to="/" replace />
 
-  const submit = () => {
+  const submit = async () => {
+    if (busy) return
     if (!name.trim() || !email.trim() || password.length < 4) {
       setError('Renseigne ton nom, un email et un mot de passe (4 caractères min).')
       return
     }
-    const res = signup({
+    if (role === 'ramasseur' && phone.replace(/\D/g, '').length < 8) {
+      setError('Le ramasseur doit indiquer un numéro Mobile Money (pour être payé).')
+      return
+    }
+    setBusy(true)
+    setError('')
+    const res = await signup({
       name,
       email,
       password,
       role,
       ville,
-      quartier: role === 'citoyen' ? quartier.trim() || 'Non précisé' : '—',
+      quartier: role === 'decideur' ? '—' : quartier.trim() || 'Non précisé',
       organisation: role === 'decideur' ? organisation.trim() || undefined : undefined,
+      phone: role === 'ramasseur' ? phone.trim() : undefined,
+      operator: role === 'ramasseur' ? operator : undefined,
     })
+    setBusy(false)
     if (!res.ok) {
       setError(res.error ?? 'Erreur')
       return
     }
-    navigate(role === 'decideur' ? '/tableau-de-bord' : '/', { replace: true })
+    navigate(role === 'decideur' ? '/tableau-de-bord' : role === 'ramasseur' ? '/demandes' : '/', {
+      replace: true,
+    })
   }
 
   return (
     <AuthShell title="Créer un compte" subtitle="Choisis ton profil pour commencer">
       {/* choix du rôle */}
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <RoleCard
-          active={role === 'citoyen'}
-          onClick={() => setRole('citoyen')}
-          emoji="👤"
-          title="Citoyen"
-          desc="Je signale les déchets"
-        />
-        <RoleCard
-          active={role === 'decideur'}
-          onClick={() => setRole('decideur')}
-          emoji="🏛️"
-          title="Décideur"
-          desc="Commune / HYSACAM"
-        />
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <RoleCard active={role === 'citoyen'} onClick={() => setRole('citoyen')} emoji="👤" title="Ménage" desc="Signaler / demander" />
+        <RoleCard active={role === 'ramasseur'} onClick={() => setRole('ramasseur')} emoji="🛺" title="Ramasseur" desc="Collecter & gagner" />
+        <RoleCard active={role === 'decideur'} onClick={() => setRole('decideur')} emoji="🏛️" title="Décideur" desc="Commune" />
       </div>
 
       <div className="space-y-3">
@@ -82,24 +88,40 @@ export function SignupPage() {
               ))}
             </select>
           </Field>
-          {role === 'citoyen' ? (
-            <Field label="Quartier">
-              <input value={quartier} onChange={(e) => setQuartier(e.target.value)} placeholder="ex. Mokolo" className="w-full bg-transparent outline-none" />
-            </Field>
-          ) : (
+          {role === 'decideur' ? (
             <Field label="Organisation" icon={<Building2 size={16} />}>
               <input value={organisation} onChange={(e) => setOrganisation(e.target.value)} placeholder="ex. Commune III" className="w-full bg-transparent outline-none" />
             </Field>
+          ) : (
+            <Field label="Quartier">
+              <input value={quartier} onChange={(e) => setQuartier(e.target.value)} placeholder="ex. Mokolo" className="w-full bg-transparent outline-none" />
+            </Field>
           )}
         </div>
+
+        {role === 'ramasseur' && (
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="N° Mobile Money" icon={<Phone size={16} />}>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+237 6XX…" className="w-full bg-transparent outline-none" />
+            </Field>
+            <Field label="Opérateur">
+              <select value={operator} onChange={(e) => setOperator(e.target.value)} className="w-full bg-transparent outline-none">
+                {OPERATORS.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )}
 
         {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
         <button
           onClick={submit}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 font-semibold text-white transition active:scale-[0.98]"
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
         >
-          <UserPlus size={18} /> Créer mon compte
+          <UserPlus size={18} /> {busy ? 'Création…' : 'Créer mon compte'}
         </button>
       </div>
 
@@ -131,9 +153,9 @@ function RoleCard({
         active ? 'border-brand bg-brand-soft ring-1 ring-brand' : 'border-line bg-card'
       }`}
     >
-      <div className="text-2xl">{emoji}</div>
-      <div className="mt-1 font-semibold text-ink">{title}</div>
-      <div className="text-xs text-faint">{desc}</div>
+      <div className="text-xl">{emoji}</div>
+      <div className="mt-1 text-sm font-semibold text-ink">{title}</div>
+      <div className="text-[10px] leading-tight text-faint">{desc}</div>
     </button>
   )
 }

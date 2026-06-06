@@ -14,14 +14,23 @@ export function LoginPage() {
 
   if (authId) return <Navigate to="/" replace />
 
-  const submit = () => {
-    const res = login(email, password)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    const res = await login(email, password)
+    setBusy(false)
     if (!res.ok) {
       setError(res.error ?? 'Erreur')
       return
     }
     const acc = currentAccount(useStore.getState())
-    navigate(acc?.role === 'decideur' ? '/tableau-de-bord' : '/', { replace: true })
+    navigate(
+      acc?.role === 'decideur' ? '/tableau-de-bord' : acc?.role === 'ramasseur' ? '/demandes' : '/',
+      { replace: true },
+    )
   }
 
   const fillDemo = (e: string) => {
@@ -57,9 +66,10 @@ export function LoginPage() {
 
         <button
           onClick={submit}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 font-semibold text-white transition active:scale-[0.98]"
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
         >
-          <LogIn size={18} /> Se connecter
+          <LogIn size={18} /> {busy ? 'Connexion…' : 'Se connecter'}
         </button>
       </div>
 
@@ -73,7 +83,10 @@ export function LoginPage() {
         <div className="mb-2 font-semibold text-muted">Comptes de démonstration (mot de passe : demo1234)</div>
         <div className="flex gap-2">
           <button onClick={() => fillDemo('citoyen@mboa.cm')} className="flex-1 rounded-lg bg-card px-2 py-1.5 font-medium ring-1 ring-line">
-            👤 Citoyen
+            👤 Ménage
+          </button>
+          <button onClick={() => fillDemo('ramasseur@mboa.cm')} className="flex-1 rounded-lg bg-card px-2 py-1.5 font-medium ring-1 ring-line">
+            🛺 Ramasseur
           </button>
           <button onClick={() => fillDemo('decideur@mboa.cm')} className="flex-1 rounded-lg bg-card px-2 py-1.5 font-medium ring-1 ring-line">
             🏛️ Décideur

@@ -13,6 +13,8 @@ import { DashboardPage } from './pages/DashboardPage.tsx'
 import { EducationPage } from './pages/EducationPage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
 import { SignupPage } from './pages/SignupPage.tsx'
+import { PickupRequestPage } from './pages/PickupRequestPage.tsx'
+import { PickupsPage } from './pages/PickupsPage.tsx'
 
 // suivi de la connexion (mode hors-ligne natif)
 const sync = () => {
@@ -35,6 +37,8 @@ const router = createHashRouter([
       { path: 'signalement/:id', element: <ReportDetailPage /> },
       { path: 'profil', element: <ProfilePage /> },
       { path: 'conseils', element: <EducationPage /> },
+      { path: 'ramassage', element: <PickupRequestPage /> },
+      { path: 'demandes', element: <PickupsPage /> },
       { path: 'tableau-de-bord', element: <DashboardPage /> },
     ],
   },

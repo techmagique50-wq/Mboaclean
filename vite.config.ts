@@ -10,21 +10,25 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'MboaClean — Cameroun propre',
         short_name: 'MboaClean',
         description:
           'Signalez les dépôts sauvages, suivez leur résolution, et aidez votre commune à optimiser la collecte.',
         lang: 'fr',
+        dir: 'ltr',
         theme_color: '#1B7A43',
         background_color: '#EAF3EC',
         display: 'standalone',
-        start_url: '.',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
+        categories: ['utilities', 'productivity'],
         icons: [
-          { src: 'icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

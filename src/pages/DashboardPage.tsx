@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, Fuel, Leaf, Route, TrendingUp } from 'lucide-react'
-import { useStore } from '../store'
+import { useAuth, useStore } from '../store'
 import { MapView } from '../components/MapView'
 import { planRoute, urgency } from '../domain/engine'
 import { departureAdvice, fmtHour } from '../domain/congestion'
-import { CITY_NAMES, cityCenter, depotFor } from '../domain/cities'
+import { cityCenter, depotFor } from '../domain/cities'
 import { WASTE_LABEL } from '../domain/types'
 import { PageTitle, Stat, StatusPill, UrgencyPill, formatFCFA } from '../ui/ui'
 
 export function DashboardPage() {
   const reports = useStore((s) => s.reports)
-  const [ville, setVille] = useState<string>('Yaoundé')
+  const me = useAuth()
+  const ville = me?.ville ?? 'Yaoundé' // le décideur ne pilote que sa ville
   const depot = depotFor(ville)
 
   const cityReports = useMemo(() => reports.filter((r) => r.ville === ville), [reports, ville])
@@ -49,16 +50,10 @@ export function DashboardPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <PageTitle title="Tableau de bord" subtitle={`Pilotage de la collecte — ${ville}`} />
-        <select
-          value={ville}
-          onChange={(e) => setVille(e.target.value)}
-          className="rounded-xl border border-line bg-card px-3 py-2 text-sm"
-        >
-          {CITY_NAMES.map((v) => (
-            <option key={v} value={v}>{v}</option>
-          ))}
-        </select>
+        <PageTitle title="Tableau de bord" subtitle="Pilotage de la collecte" />
+        <span className="rounded-xl bg-brand-soft px-3 py-2 text-sm font-semibold text-brand">
+          🏙️ {ville}
+        </span>
       </div>
 
       {/* KPIs */}

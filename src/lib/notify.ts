@@ -30,6 +30,27 @@ export function todayKey(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+/** Notification générique (titre + corps). */
+export async function showNotification(title: string, body: string, tag?: string): Promise<boolean> {
+  if (!notificationsSupported() || Notification.permission !== 'granted') return false
+  const options: NotificationOptions = { body, icon: '/icon.svg', badge: '/icon.svg', tag }
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready
+      await reg.showNotification(title, options)
+      return true
+    }
+  } catch {
+    /* repli */
+  }
+  try {
+    new Notification(title, options)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Affiche le conseil sous forme de notification. */
 export async function showTipNotification(tip: TipLike): Promise<boolean> {
   if (!notificationsSupported() || Notification.permission !== 'granted') return false

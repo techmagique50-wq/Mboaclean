@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { DEPOT, seedReports } from './domain/seed'
+import { DEPOT, seedPickups, seedReports } from './domain/seed'
 import type { Habits } from './domain/eco'
-import type { Report, ReportStatus, Role } from './domain/types'
+import type { PickupRequest, Report, ReportStatus, Role } from './domain/types'
+import { isSupabaseConfigured } from './lib/supabase'
+import * as db from './lib/db'
+import { signInRemote, signOutRemote, signUpRemote } from './lib/auth'
 
 export interface NotifPrefs {
   enabled: boolean
@@ -31,6 +34,8 @@ export interface Account {
   ville: string
   quartier: string
   organisation?: string // pour les décideurs (commune / HYSACAM)
+  phone?: string // numéro Mobile Money (paiement des ramasseurs)
+  operator?: string // MTN MoMo / Orange Money
   ecoPoints: number
 }
 
@@ -66,6 +71,18 @@ const seedAccounts: Account[] = [
     organisation: 'Commune de Yaoundé',
     ecoPoints: 0,
   },
+  {
+    id: 'acc_ram',
+    name: 'Joseph (ramasseur)',
+    email: 'ramasseur@mboa.cm',
+    password: hashPassword('demo1234'),
+    role: 'ramasseur',
+    ville: 'Yaoundé',
+    quartier: 'Mokolo',
+    phone: '+237 6 99 88 77 66',
+    operator: 'MTN MoMo',
+    ecoPoints: 0,
+  },
 ]
 
 export interface AuthResult {
@@ -80,12 +97,15 @@ export interface Redemption {
   label: string
   cost: number
   at: number
+  phone?: string // numéro Mobile Money (crédit / transfert)
+  operator?: string // MTN MoMo / Orange Money
 }
 
 interface State {
   accounts: Account[]
   authId: string | null
   reports: Report[]
+  pickups: PickupRequest[]
   redemptions: Redemption[]
   online: boolean
   habits: Habits
@@ -94,10 +114,15 @@ interface State {
   aiTip: AiTip | null
 
   setAiTip: (t: AiTip | null) => void
-  signup: (data: Omit<Account, 'id' | 'password' | 'ecoPoints'> & { password: string }) => AuthResult
-  login: (email: string, password: string) => AuthResult
-  logout: () => void
-  redeem: (reward: { id: string; label: string; cost: number }) => AuthResult
+  signup: (data: Omit<Account, 'id' | 'password' | 'ecoPoints'> & { password: string }) => Promise<AuthResult>
+  login: (email: string, password: string) => Promise<AuthResult>
+  logout: () => Promise<void>
+  hydrate: () => Promise<void>
+  supabaseMode: boolean
+  redeem: (
+    reward: { id: string; label: string; cost: number },
+    contact?: { phone?: string; operator?: string },
+  ) => AuthResult
 
   setOnline: (v: boolean) => void
   setHabits: (h: Habits) => void
@@ -112,6 +137,15 @@ interface State {
   ) => string
   setStatus: (id: string, status: ReportStatus, afterPhoto?: string) => void
   syncPending: () => void
+
+  // marketplace de ramassage
+  createPickup: (
+    data: Pick<PickupRequest, 'ville' | 'quartier' | 'lat' | 'lng' | 'wasteType' | 'note' | 'fee'>,
+  ) => string
+  acceptPickup: (id: string) => void
+  completePickup: (id: string) => void
+  cancelPickup: (id: string) => void
+
   reset: () => void
 }
 
@@ -126,6 +160,7 @@ export const useStore = create<State>()(
       accounts: seedAccounts,
       authId: null,
       reports: seedReports,
+      pickups: seedPickups,
       redemptions: [],
       online: true,
       habits: {},
@@ -135,7 +170,26 @@ export const useStore = create<State>()(
 
       setAiTip: (aiTip) => set({ aiTip }),
 
-      signup: (data) => {
+      supabaseMode: isSupabaseConfigured(),
+
+      signup: async (data) => {
+        if (isSupabaseConfigured()) {
+          const res = await signUpRemote({
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            role: data.role,
+            ville: data.ville,
+            quartier: data.quartier,
+            organisation: data.organisation,
+            phone: data.phone,
+            operator: data.operator,
+          })
+          if (!res.ok || !res.profile) return { ok: false, error: res.error }
+          set({ accounts: [res.profile], authId: res.profile.id })
+          await get().hydrate()
+          return { ok: true }
+        }
         const email = data.email.trim().toLowerCase()
         if (!email || !data.password) return { ok: false, error: 'Email et mot de passe requis.' }
         if (get().accounts.some((a) => a.email === email))
@@ -149,13 +203,22 @@ export const useStore = create<State>()(
           ville: data.ville,
           quartier: data.quartier,
           organisation: data.organisation,
+          phone: data.phone,
+          operator: data.operator,
           ecoPoints: 0,
         }
         set((s) => ({ accounts: [...s.accounts, account], authId: account.id }))
         return { ok: true }
       },
 
-      login: (email, password) => {
+      login: async (email, password) => {
+        if (isSupabaseConfigured()) {
+          const res = await signInRemote(email, password)
+          if (!res.ok || !res.profile) return { ok: false, error: res.error }
+          set({ accounts: [res.profile], authId: res.profile.id })
+          await get().hydrate()
+          return { ok: true }
+        }
         const e = email.trim().toLowerCase()
         const acc = get().accounts.find((a) => a.email === e)
         if (!acc || acc.password !== hashPassword(password))
@@ -164,9 +227,24 @@ export const useStore = create<State>()(
         return { ok: true }
       },
 
-      logout: () => set({ authId: null }),
+      logout: async () => {
+        if (isSupabaseConfigured()) await signOutRemote()
+        set({ authId: null })
+      },
 
-      redeem: (reward) => {
+      hydrate: async () => {
+        if (!isSupabaseConfigured()) return
+        try {
+          const me = currentAccount(get())
+          const [reports, pickups] = await Promise.all([db.fetchReports(), db.fetchPickups()])
+          const redemptions = me ? await db.fetchRedemptions(me.id) : get().redemptions
+          set({ reports, pickups, redemptions })
+        } catch {
+          /* hors-ligne : on garde le cache local */
+        }
+      },
+
+      redeem: (reward, contact) => {
         const me = currentAccount(get())
         if (!me) return { ok: false, error: 'Non connecté.' }
         if (me.ecoPoints < reward.cost)
@@ -178,6 +256,8 @@ export const useStore = create<State>()(
           label: reward.label,
           cost: reward.cost,
           at: Date.now(),
+          phone: contact?.phone,
+          operator: contact?.operator,
         }
         set((s) => ({
           accounts: s.accounts.map((a) =>
@@ -185,6 +265,10 @@ export const useStore = create<State>()(
           ),
           redemptions: [redemption, ...s.redemptions],
         }))
+        if (isSupabaseConfigured()) {
+          db.insertRedemption(me.id, reward, contact).catch(() => {})
+          db.updateProfile(me.id, { ecoPoints: me.ecoPoints - reward.cost }).catch(() => {})
+        }
         return { ok: true }
       },
 
@@ -214,10 +298,14 @@ export const useStore = create<State>()(
             a.id === s.authId ? { ...a, ecoPoints: a.ecoPoints + 10 } : a,
           ),
         }))
+        if (isSupabaseConfigured() && me) {
+          db.insertReport(data, me.id, me.name).catch(() => {})
+          db.updateProfile(me.id, { ecoPoints: me.ecoPoints + 10 }).catch(() => {})
+        }
         return id
       },
 
-      setStatus: (id, status, afterPhoto) =>
+      setStatus: (id, status, afterPhoto) => {
         set((s) => ({
           reports: s.reports.map((r) => {
             if (r.id !== id) return r
@@ -230,18 +318,77 @@ export const useStore = create<State>()(
               history: [...r.history, { status, at: ts }],
             }
           }),
-        })),
+        }))
+        if (isSupabaseConfigured()) db.updateReportStatus(id, status, afterPhoto).catch(() => {})
+      },
 
       syncPending: () =>
         set((s) => ({
           reports: s.reports.map((r) => (r.sync === 'pending' ? { ...r, sync: 'synced' } : r)),
         })),
 
+      createPickup: (data) => {
+        const me = currentAccount(get())
+        const id = newId('pk')
+        const now = Date.now()
+        const pickup: PickupRequest = {
+          id,
+          householdId: me?.id ?? 'anon',
+          householdName: me?.name ?? 'Ménage',
+          status: 'ouverte',
+          createdAt: now,
+          updatedAt: now,
+          ...data,
+        }
+        set((s) => ({ pickups: [pickup, ...s.pickups] }))
+        if (isSupabaseConfigured() && me) db.insertPickup(data, me.id, me.name).catch(() => {})
+        return id
+      },
+
+      acceptPickup: (id) => {
+        const me = currentAccount(get())
+        set((s) => ({
+          pickups: s.pickups.map((p) =>
+            p.id === id && p.status === 'ouverte'
+              ? {
+                  ...p,
+                  status: 'acceptee',
+                  collectorId: me?.id,
+                  collectorName: me?.name,
+                  collectorPhone: me?.phone,
+                  collectorOperator: me?.operator,
+                  updatedAt: Date.now(),
+                }
+              : p,
+          ),
+        }))
+        if (isSupabaseConfigured() && me) db.acceptPickupDb(id, me.id).catch(() => {})
+      },
+
+      completePickup: (id) => {
+        if (isSupabaseConfigured()) db.setPickupStatus(id, 'terminee').catch(() => {})
+        set((s) => ({
+          pickups: s.pickups.map((p) =>
+            p.id === id ? { ...p, status: 'terminee', updatedAt: Date.now() } : p,
+          ),
+        }))
+      },
+
+      cancelPickup: (id) => {
+        if (isSupabaseConfigured()) db.setPickupStatus(id, 'annulee').catch(() => {})
+        set((s) => ({
+          pickups: s.pickups.map((p) =>
+            p.id === id && p.status === 'ouverte' ? { ...p, status: 'annulee', updatedAt: Date.now() } : p,
+          ),
+        }))
+      },
+
       reset: () =>
         set({
           accounts: seedAccounts,
           authId: null,
           reports: seedReports,
+          pickups: seedPickups,
           redemptions: [],
           online: true,
           habits: {},
@@ -249,7 +396,7 @@ export const useStore = create<State>()(
           aiTip: null,
         }),
     }),
-    { name: 'mboaclean-store', version: 2 },
+    { name: 'mboaclean-store', version: 3 },
   ),
 )
 

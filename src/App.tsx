@@ -8,6 +8,7 @@ import {
   WifiOff,
   Recycle,
   Lightbulb,
+  Truck,
   Moon,
   Sun,
   LogOut,
@@ -15,6 +16,10 @@ import {
 import { useAuth, useStore } from './store'
 import { useDailyTipNotification } from './hooks/useDailyTipNotification'
 import { useDailyAITip } from './hooks/useDailyAITip'
+import { useCollectorAlerts } from './hooks/useCollectorAlerts'
+import { isSupabaseConfigured } from './lib/supabase'
+import { currentProfile } from './lib/auth'
+import { InstallButton } from './components/InstallButton'
 
 export default function App() {
   const me = useAuth()
@@ -26,10 +31,30 @@ export default function App() {
   const loc = useLocation()
   useDailyTipNotification()
   useDailyAITip()
+  useCollectorAlerts()
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
+
+  // Supabase : récupère la session au démarrage puis charge les données
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return
+    let active = true
+    ;(async () => {
+      const profile = await currentProfile()
+      if (!active) return
+      if (profile) {
+        useStore.setState({ accounts: [profile], authId: profile.id })
+        await useStore.getState().hydrate()
+      } else {
+        useStore.setState({ authId: null })
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
 
   // garde-fou : pas de compte → connexion
   if (!me) return <Navigate to="/login" replace />
@@ -37,15 +62,20 @@ export default function App() {
 
   const citoyenNav = [
     { to: '/', label: 'Carte', icon: Map, end: true },
+    { to: '/ramassage', label: 'Ramassage', icon: Truck, end: false },
     { to: '/conseils', label: 'Conseils', icon: Lightbulb, end: false },
-    { to: '/signaler', label: 'Signaler', icon: PlusCircle, end: false },
+    { to: '/profil', label: 'Profil', icon: User, end: false },
+  ]
+  const ramasseurNav = [
+    { to: '/demandes', label: 'Demandes', icon: Truck, end: false },
+    { to: '/', label: 'Carte', icon: Map, end: true },
     { to: '/profil', label: 'Profil', icon: User, end: false },
   ]
   const decideurNav = [
     { to: '/tableau-de-bord', label: 'Tableau de bord', icon: LayoutDashboard, end: false },
     { to: '/', label: 'Carte', icon: Map, end: true },
   ]
-  const nav = role === 'citoyen' ? citoyenNav : decideurNav
+  const nav = role === 'citoyen' ? citoyenNav : role === 'ramasseur' ? ramasseurNav : decideurNav
 
   const ThemeBtn = ({ className = '' }: { className?: string }) => (
     <button
@@ -66,7 +96,7 @@ export default function App() {
         </span>
         <div className="flex items-center gap-1">
           <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium">
-            {role === 'citoyen' ? '👤 Citoyen' : '🏛️ Décideur'}
+            {role === 'citoyen' ? '👤 Ménage' : role === 'ramasseur' ? '🛺 Ramasseur' : '🏛️ Décideur'}
           </span>
           <ThemeBtn className="text-white hover:bg-white/15" />
           <button
@@ -110,12 +140,12 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 rounded-xl border border-line px-3 py-2">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
-              {role === 'citoyen' ? <User size={18} /> : <LayoutDashboard size={18} />}
+              {role === 'citoyen' ? <User size={18} /> : role === 'ramasseur' ? <Truck size={18} /> : <LayoutDashboard size={18} />}
             </span>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-ink">{me.name}</div>
               <div className="truncate text-xs text-faint">
-                {role === 'citoyen' ? 'Citoyen' : me.organisation ?? 'Décideur'}
+                {role === 'citoyen' ? 'Ménage' : role === 'ramasseur' ? 'Ramasseur' : me.organisation ?? 'Décideur'}
               </div>
             </div>
             <button
@@ -131,6 +161,7 @@ export default function App() {
 
       {/* Contenu */}
       <div className="flex min-w-0 flex-1 flex-col">
+        <InstallButton />
         {!online && (
           <div className="flex items-center justify-center gap-2 bg-danger py-1.5 text-xs font-medium text-white">
             <WifiOff size={14} /> Hors-ligne — tes signalements seront synchronisés au retour du réseau
